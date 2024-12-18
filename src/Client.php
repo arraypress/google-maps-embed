@@ -249,11 +249,13 @@ class Client {
 	 * @return string|WP_Error URL for the embed or WP_Error on failure
 	 */
 	public function place( string $place_id, array $options = [] ) {
-		return $this->generate_url( 'place', array_merge(
+		$params = array_merge(
 			[ 'q' => 'place_id:' . $place_id ],
-			$this->options,
+			$this->get_common_options(),
 			$options
-		) );
+		);
+
+		return $this->generate_url( 'place', $params );
 	}
 
 	/**
@@ -267,11 +269,13 @@ class Client {
 	 * @return string|WP_Error URL for the embed or WP_Error on failure
 	 */
 	public function search( string $query, array $options = [] ) {
-		return $this->generate_url( 'search', array_merge(
+		$params = array_merge(
 			[ 'q' => $query ],
-			$this->options,
+			$this->get_common_options(),
 			$options
-		) );
+		);
+
+		return $this->generate_url( 'search', $params );
 	}
 
 	/**
@@ -288,15 +292,17 @@ class Client {
 	 * @return string|WP_Error URL for the embed or WP_Error on failure
 	 */
 	public function view( float $latitude, float $longitude, array $options = [] ) {
-		return $this->generate_url( 'view', array_merge(
+		$params = array_merge(
 			[
 				'center'  => "{$latitude},{$longitude}",
 				'zoom'    => $this->options['zoom'],
 				'maptype' => $this->options['maptype']
 			],
-			$this->options,
+			$this->get_common_options(),
 			$options
-		) );
+		);
+
+		return $this->generate_url( 'view', $params );
 	}
 
 	/**
@@ -316,20 +322,28 @@ class Client {
 	public function directions( string $origin, string $destination, array $options = [] ) {
 		$params = [
 			'origin'      => $origin,
-			'destination' => $destination,
-			'mode'        => $this->options['mode'],
-			'units'       => $this->options['units']
+			'destination' => $destination
 		];
+
+		if ( ! empty( $this->options['mode'] ) ) {
+			$params['mode'] = $this->options['mode'];
+		}
 
 		if ( ! empty( $this->options['avoid'] ) ) {
 			$params['avoid'] = implode( '|', $this->options['avoid'] );
 		}
 
-		return $this->generate_url( 'directions', array_merge(
+		if ( ! empty( $this->options['units'] ) ) {
+			$params['units'] = $this->options['units'];
+		}
+
+		$params = array_merge(
 			$params,
-			$this->options,
+			$this->get_common_options(),
 			$options
-		) );
+		);
+
+		return $this->generate_url( 'directions', $params );
 	}
 
 	/**
@@ -347,16 +361,45 @@ class Client {
 	 * @return string|WP_Error URL for the embed or WP_Error on failure
 	 */
 	public function streetview( float $latitude, float $longitude, array $options = [] ) {
-		return $this->generate_url( 'streetview', array_merge(
-			[
-				'location' => "{$latitude},{$longitude}",
-				'heading'  => $this->options['heading'],
-				'pitch'    => $this->options['pitch'],
-				'fov'      => $this->options['fov']
-			],
-			$this->options,
+		$params = [
+			'location' => "{$latitude},{$longitude}"
+		];
+
+		// Only add non-zero values for these parameters
+		if ( ! empty( $this->options['heading'] ) ) {
+			$params['heading'] = $this->options['heading'];
+		}
+		if ( ! empty( $this->options['pitch'] ) ) {
+			$params['pitch'] = $this->options['pitch'];
+		}
+		if ( ! empty( $this->options['fov'] ) && $this->options['fov'] !== 90 ) {
+			$params['fov'] = $this->options['fov'];
+		}
+
+		$params = array_merge(
+			$params,
+			$this->get_common_options(),
 			$options
-		) );
+		);
+
+		return $this->generate_url( 'streetview', $params );
+	}
+
+	/**
+	 * Get common options that apply to all modes
+	 *
+	 * @return array Common options
+	 */
+	private function get_common_options(): array {
+		$common = [];
+		if ( ! empty( $this->options['language'] ) ) {
+			$common['language'] = $this->options['language'];
+		}
+		if ( ! empty( $this->options['region'] ) ) {
+			$common['region'] = $this->options['region'];
+		}
+
+		return $common;
 	}
 
 	/**
