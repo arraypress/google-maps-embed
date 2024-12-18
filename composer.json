@@ -1,6 +1,5 @@
 {
   "name": "arraypress/google-maps-embed",
-  "version": "1.0.0",
   "description": "A PHP library for integrating with the Google Maps Embed API in WordPress, providing interactive map embeds with support for places, searches, directions, and street view. Features WordPress error handling and customizable iframe generation.",
   "type": "library",
   "license": "GPL-2.0-or-later",
@@ -23,7 +22,8 @@
     "optimize-autoloader": true,
     "sort-packages": true
   },
-  "minimum-stability": "stable",
+  "minimum-stability": "dev",
+  "prefer-stable": true,
   "support": {
     "issues": "https://github.com/arraypress/google-maps-embed/issues",
     "source": "https://github.com/arraypress/google-maps-embed"
