@@ -13,14 +13,78 @@ declare( strict_types=1 );
 
 namespace ArrayPress\Google\MapsEmbed;
 
+use InvalidArgumentException;
 use WP_Error;
 
 /**
  * Class Client
  *
  * A comprehensive utility class for interacting with the Google Maps Embed API.
+ * This class provides methods for generating embeddable Google Maps URLs and iframes
+ * with support for various modes including place, search, view, directions, and street view.
  */
 class Client {
+
+	/**
+	 * Valid travel modes for directions
+	 *
+	 * @var array<string>
+	 */
+	private const VALID_MODES = [
+		'driving',
+		'walking',
+		'bicycling',
+		'transit'
+	];
+
+	/**
+	 * Valid map types for view mode
+	 *
+	 * @var array<string>
+	 */
+	private const VALID_MAP_TYPES = [
+		'roadmap',
+		'satellite'
+	];
+
+	/**
+	 * Valid units for distance measurements
+	 *
+	 * @var array<string>
+	 */
+	private const VALID_UNITS = [
+		'metric',
+		'imperial'
+	];
+
+	/**
+	 * Valid avoid options for directions
+	 *
+	 * @var array<string>
+	 */
+	private const VALID_AVOID = [
+		'tolls',
+		'ferries',
+		'highways'
+	];
+
+	/**
+	 * Default options for map configuration
+	 *
+	 * @var array<string, mixed>
+	 */
+	private const DEFAULT_OPTIONS = [
+		'zoom'     => 12,
+		'maptype'  => 'roadmap',
+		'language' => '',
+		'region'   => '',
+		'heading'  => 0,
+		'pitch'    => 0,
+		'fov'      => 90,
+		'mode'     => 'driving',
+		'avoid'    => [],
+		'units'    => 'metric'
+	];
 
 	/**
 	 * API key for Google Maps
@@ -37,34 +101,129 @@ class Client {
 	private const API_ENDPOINT = 'https://www.google.com/maps/embed/v1/';
 
 	/**
-	 * Default options for map configuration
+	 * Current options for map configuration
 	 *
-	 * @var array
+	 * @var array<string, mixed>
 	 */
-	private array $options = [
-		'zoom'     => 12,      // Default city-level zoom
-		'maptype'  => 'roadmap', // Default map type
-		'language' => '',      // Default to no specific language
-		'region'   => '',      // Default to no specific region
-		'heading'  => 0,       // Default street view heading (north)
-		'pitch'    => 0,       // Default street view pitch (horizontal)
-		'fov'      => 90,      // Default street view field of view
-		'mode'     => 'driving', // Default travel mode for directions
-		'avoid'    => [],      // Default to no route avoidance
-		'units'    => 'metric' // Default measurement units
-	];
+	private array $options;
 
 	/**
 	 * Initialize the Maps Embed client
 	 *
-	 * @param string $api_key API key for Google Maps
+	 * @param string $api_key Google Maps API key
 	 */
 	public function __construct( string $api_key ) {
 		$this->api_key = $api_key;
+		$this->options = self::DEFAULT_OPTIONS;
 	}
 
 	/**
-	 * Set the zoom level for the map
+	 * Set travel mode for directions
+	 *
+	 * @param string $mode Travel mode (driving, walking, bicycling, transit)
+	 *
+	 * @return self
+	 * @throws InvalidArgumentException If invalid mode provided
+	 */
+	public function set_mode( string $mode ): self {
+		if ( ! in_array( $mode, self::VALID_MODES ) ) {
+			throw new InvalidArgumentException( "Invalid mode. Must be one of: " . implode( ', ', self::VALID_MODES ) );
+		}
+		$this->options['mode'] = $mode;
+
+		return $this;
+	}
+
+	/**
+	 * Get current travel mode
+	 *
+	 * @return string Current travel mode
+	 */
+	public function get_mode(): string {
+		return $this->options['mode'];
+	}
+
+	/**
+	 * Set map type for view mode
+	 *
+	 * @param string $type Map type (roadmap, satellite)
+	 *
+	 * @return self
+	 * @throws InvalidArgumentException If invalid type provided
+	 */
+	public function set_map_type( string $type ): self {
+		if ( ! in_array( $type, self::VALID_MAP_TYPES ) ) {
+			throw new InvalidArgumentException( "Invalid map type. Must be one of: " . implode( ', ', self::VALID_MAP_TYPES ) );
+		}
+		$this->options['maptype'] = $type;
+
+		return $this;
+	}
+
+	/**
+	 * Get current map type
+	 *
+	 * @return string Current map type
+	 */
+	public function get_map_type(): string {
+		return $this->options['maptype'];
+	}
+
+	/**
+	 * Set units for distance measurements
+	 *
+	 * @param string $units Units system (metric, imperial)
+	 *
+	 * @return self
+	 * @throws InvalidArgumentException If invalid units provided
+	 */
+	public function set_units( string $units ): self {
+		if ( ! in_array( $units, self::VALID_UNITS ) ) {
+			throw new InvalidArgumentException( "Invalid units. Must be one of: " . implode( ', ', self::VALID_UNITS ) );
+		}
+		$this->options['units'] = $units;
+
+		return $this;
+	}
+
+	/**
+	 * Get current units setting
+	 *
+	 * @return string Current units system
+	 */
+	public function get_units(): string {
+		return $this->options['units'];
+	}
+
+	/**
+	 * Set avoid options for directions
+	 *
+	 * @param array $avoid Features to avoid (tolls, highways, ferries)
+	 *
+	 * @return self
+	 * @throws InvalidArgumentException If invalid avoid option provided
+	 */
+	public function set_avoid( array $avoid ): self {
+		$invalid = array_diff( $avoid, self::VALID_AVOID );
+		if ( ! empty( $invalid ) ) {
+			throw new InvalidArgumentException( "Invalid avoid options: " . implode( ', ', $invalid ) );
+		}
+		$this->options['avoid'] = $avoid;
+
+		return $this;
+	}
+
+	/**
+	 * Get current avoid options
+	 *
+	 * @return array Current avoid settings
+	 */
+	public function get_avoid(): array {
+		return $this->options['avoid'];
+	}
+
+	/**
+	 * Set zoom level for map
 	 *
 	 * @param int $level Zoom level (0-21)
 	 *                   0: World view
@@ -74,30 +233,115 @@ class Client {
 	 *                   20: Buildings
 	 *
 	 * @return self
+	 * @throws InvalidArgumentException If invalid zoom level provided
 	 */
 	public function set_zoom( int $level ): self {
-		$this->options['zoom'] = max( 0, min( 21, $level ) );
+		if ( $level < 0 || $level > 21 ) {
+			throw new InvalidArgumentException( "Invalid zoom level. Must be between 0 and 21." );
+		}
+		$this->options['zoom'] = $level;
 
 		return $this;
 	}
 
 	/**
-	 * Set the map type
+	 * Get current zoom level
 	 *
-	 * @param string $type Map type (roadmap, satellite)
+	 * @return int Current zoom level
+	 */
+	public function get_zoom(): int {
+		return $this->options['zoom'];
+	}
+
+	/**
+	 * Set heading for street view
+	 *
+	 * @param float $degrees Heading in degrees (0-360)
+	 *                       0: North
+	 *                       90: East
+	 *                       180: South
+	 *                       270: West
 	 *
 	 * @return self
+	 * @throws InvalidArgumentException If invalid heading provided
 	 */
-	public function set_map_type( string $type ): self {
-		if ( in_array( $type, [ 'roadmap', 'satellite' ] ) ) {
-			$this->options['maptype'] = $type;
+	public function set_heading( float $degrees ): self {
+		if ( $degrees < 0 || $degrees > 360 ) {
+			throw new InvalidArgumentException( "Invalid heading. Must be between 0 and 360 degrees." );
 		}
+		$this->options['heading'] = $degrees;
 
 		return $this;
 	}
 
 	/**
-	 * Set the language for map labels and controls
+	 * Get current heading
+	 *
+	 * @return float Current heading in degrees
+	 */
+	public function get_heading(): float {
+		return $this->options['heading'];
+	}
+
+	/**
+	 * Set pitch for street view
+	 *
+	 * @param float $degrees Pitch in degrees (-90 to 90)
+	 *                       -90: Straight down
+	 *                       0: Horizontal
+	 *                       90: Straight up
+	 *
+	 * @return self
+	 * @throws InvalidArgumentException If invalid pitch provided
+	 */
+	public function set_pitch( float $degrees ): self {
+		if ( $degrees < - 90 || $degrees > 90 ) {
+			throw new InvalidArgumentException( "Invalid pitch. Must be between -90 and 90 degrees." );
+		}
+		$this->options['pitch'] = $degrees;
+
+		return $this;
+	}
+
+	/**
+	 * Get current pitch
+	 *
+	 * @return float Current pitch in degrees
+	 */
+	public function get_pitch(): float {
+		return $this->options['pitch'];
+	}
+
+	/**
+	 * Set field of view for street view
+	 *
+	 * @param float $degrees Field of view in degrees (10-100)
+	 *                       Lower values = more zoom
+	 *                       Higher values = wider angle
+	 *
+	 * @return self
+	 * @throws InvalidArgumentException If invalid FOV provided
+	 */
+	public function set_fov( float $degrees ): self {
+		if ( $degrees < 10 || $degrees > 100 ) {
+			throw new InvalidArgumentException( "Invalid field of view. Must be between 10 and 100 degrees." );
+		}
+		$this->options['fov'] = $degrees;
+
+		return $this;
+	}
+
+	/**
+	 * Get current field of view
+	 *
+	 * @return float Current FOV in degrees
+	 */
+	public function get_fov(): float {
+		return $this->options['fov'];
+	}
+
+	/**
+	 * Set language for map labels and controls
 	 *
 	 * @param string $language Language code (e.g., 'en', 'es', 'fr')
 	 *                         See: https://developers.google.com/maps/faq#languagesupport
@@ -111,7 +355,16 @@ class Client {
 	}
 
 	/**
-	 * Set the region bias for the map
+	 * Get current language setting
+	 *
+	 * @return string Current language code
+	 */
+	public function get_language(): string {
+		return $this->options['language'];
+	}
+
+	/**
+	 * Set region bias for the map
 	 *
 	 * @param string $region Region code (e.g., 'US', 'GB')
 	 *                       See: https://developers.google.com/maps/coverage
@@ -125,95 +378,21 @@ class Client {
 	}
 
 	/**
-	 * Set the street view camera heading
+	 * Get current region setting
 	 *
-	 * @param float $degrees Heading in degrees (0-360)
-	 *                       0: North
-	 *                       90: East
-	 *                       180: South
-	 *                       270: West
-	 *
-	 * @return self
+	 * @return string Current region code
 	 */
-	public function set_heading( float $degrees ): self {
-		$this->options['heading'] = max( 0, min( 360, $degrees ) );
-
-		return $this;
+	public function get_region(): string {
+		return $this->options['region'];
 	}
 
 	/**
-	 * Set the street view camera pitch
+	 * Get all current options
 	 *
-	 * @param float $degrees Pitch in degrees (-90 to 90)
-	 *                       -90: Straight down
-	 *                       0: Horizontal
-	 *                       90: Straight up
-	 *
-	 * @return self
+	 * @return array<string, mixed> Current options
 	 */
-	public function set_pitch( float $degrees ): self {
-		$this->options['pitch'] = max( - 90, min( 90, $degrees ) );
-
-		return $this;
-	}
-
-	/**
-	 * Set the street view field of view
-	 *
-	 * @param float $degrees Field of view in degrees (10-100)
-	 *                       Lower values = more zoom
-	 *                       Higher values = wider angle
-	 *
-	 * @return self
-	 */
-	public function set_fov( float $degrees ): self {
-		$this->options['fov'] = max( 10, min( 100, $degrees ) );
-
-		return $this;
-	}
-
-	/**
-	 * Set the travel mode for directions
-	 *
-	 * @param string $mode Mode (driving, walking, bicycling, transit)
-	 *
-	 * @return self
-	 */
-	public function set_travel_mode( string $mode ): self {
-		if ( in_array( $mode, [ 'driving', 'walking', 'bicycling', 'transit' ] ) ) {
-			$this->options['mode'] = $mode;
-		}
-
-		return $this;
-	}
-
-	/**
-	 * Set routes to avoid in directions
-	 *
-	 * @param array $avoid Features to avoid (tolls, ferries, highways)
-	 *
-	 * @return self
-	 */
-	public function set_avoid_routes( array $avoid ): self {
-		$valid_avoid            = array_intersect( $avoid, [ 'tolls', 'ferries', 'highways' ] );
-		$this->options['avoid'] = $valid_avoid;
-
-		return $this;
-	}
-
-	/**
-	 * Set the measurement units for directions
-	 *
-	 * @param string $units Units system (metric, imperial)
-	 *
-	 * @return self
-	 */
-	public function set_units( string $units ): self {
-		if ( in_array( $units, [ 'metric', 'imperial' ] ) ) {
-			$this->options['units'] = $units;
-		}
-
-		return $this;
+	public function get_options(): array {
+		return $this->options;
 	}
 
 	/**
@@ -222,18 +401,29 @@ class Client {
 	 * @return self
 	 */
 	public function reset_options(): self {
-		$this->options = [
-			'zoom'     => 12,
-			'maptype'  => 'roadmap',
-			'language' => '',
-			'region'   => '',
-			'heading'  => 0,
-			'pitch'    => 0,
-			'fov'      => 90,
-			'mode'     => 'driving',
-			'avoid'    => [],
-			'units'    => 'metric'
-		];
+		$this->options = self::DEFAULT_OPTIONS;
+
+		return $this;
+	}
+
+	/**
+	 * Get current API key
+	 *
+	 * @return string Current API key
+	 */
+	public function get_api_key(): string {
+		return $this->api_key;
+	}
+
+	/**
+	 * Set new API key
+	 *
+	 * @param string $api_key The API key to use
+	 *
+	 * @return self
+	 */
+	public function set_api_key( string $api_key ): self {
+		$this->api_key = $api_key;
 
 		return $this;
 	}
@@ -243,8 +433,6 @@ class Client {
 	 *
 	 * @param string $place_id Google Place ID
 	 * @param array  $options  Additional options for the embed
-	 *                         - language (string): Language code
-	 *                         - region (string): Region code
 	 *
 	 * @return string|WP_Error URL for the embed or WP_Error on failure
 	 */
@@ -263,8 +451,6 @@ class Client {
 	 *
 	 * @param string $query   Search query
 	 * @param array  $options Additional options for the embed
-	 *                        - language (string): Language code
-	 *                        - region (string): Region code
 	 *
 	 * @return string|WP_Error URL for the embed or WP_Error on failure
 	 */
@@ -279,15 +465,11 @@ class Client {
 	}
 
 	/**
-	 * Generate embed URL for a view
+	 * Generate embed URL for a specific view
 	 *
-	 * @param float $latitude  Latitude
-	 * @param float $longitude Longitude
+	 * @param float $latitude  Latitude coordinate
+	 * @param float $longitude Longitude coordinate
 	 * @param array $options   Additional options for the embed
-	 *                         - zoom (int): Zoom level from 0 (world) to 21 (street)
-	 *                         - maptype (string): roadmap, satellite
-	 *                         - language (string): Language code
-	 *                         - region (string): Region code
 	 *
 	 * @return string|WP_Error URL for the embed or WP_Error on failure
 	 */
@@ -311,23 +493,15 @@ class Client {
 	 * @param string $origin      Starting location
 	 * @param string $destination Ending location
 	 * @param array  $options     Additional options for the embed
-	 *                            - mode (string): driving, walking, bicycling, transit
-	 *                            - avoid (array): tolls, ferries, highways
-	 *                            - units (string): metric, imperial
-	 *                            - language (string): Language code
-	 *                            - region (string): Region code
 	 *
 	 * @return string|WP_Error URL for the embed or WP_Error on failure
 	 */
 	public function directions( string $origin, string $destination, array $options = [] ) {
 		$params = [
 			'origin'      => $origin,
-			'destination' => $destination
+			'destination' => $destination,
+			'mode'        => $this->options['mode']
 		];
-
-		if ( ! empty( $this->options['mode'] ) ) {
-			$params['mode'] = $this->options['mode'];
-		}
 
 		if ( ! empty( $this->options['avoid'] ) ) {
 			$params['avoid'] = implode( '|', $this->options['avoid'] );
@@ -347,16 +521,11 @@ class Client {
 	}
 
 	/**
-	 * Generate embed URL for a street view
+	 * Generate embed URL for street view
 	 *
-	 * @param float $latitude  Latitude
-	 * @param float $longitude Longitude
+	 * @param float $latitude  Latitude coordinate
+	 * @param float $longitude Longitude coordinate
 	 * @param array $options   Additional options for the embed
-	 *                         - heading (float): Camera heading in degrees (0-360)
-	 *                         - pitch (float): Camera pitch in degrees (-90 to 90)
-	 *                         - fov (float): Field of view in degrees (10-100)
-	 *                         - language (string): Language code
-	 *                         - region (string): Region code
 	 *
 	 * @return string|WP_Error URL for the embed or WP_Error on failure
 	 */
@@ -365,14 +534,14 @@ class Client {
 			'location' => "{$latitude},{$longitude}"
 		];
 
-		// Only add non-zero values for these parameters
-		if ( ! empty( $this->options['heading'] ) ) {
+		// Add non-zero camera parameters
+		if ( $this->options['heading'] !== 0 ) {
 			$params['heading'] = $this->options['heading'];
 		}
-		if ( ! empty( $this->options['pitch'] ) ) {
+		if ( $this->options['pitch'] !== 0 ) {
 			$params['pitch'] = $this->options['pitch'];
 		}
-		if ( ! empty( $this->options['fov'] ) && $this->options['fov'] !== 90 ) {
+		if ( $this->options['fov'] !== 90 ) {
 			$params['fov'] = $this->options['fov'];
 		}
 
@@ -383,23 +552,6 @@ class Client {
 		);
 
 		return $this->generate_url( 'streetview', $params );
-	}
-
-	/**
-	 * Get common options that apply to all modes
-	 *
-	 * @return array Common options
-	 */
-	private function get_common_options(): array {
-		$common = [];
-		if ( ! empty( $this->options['language'] ) ) {
-			$common['language'] = $this->options['language'];
-		}
-		if ( ! empty( $this->options['region'] ) ) {
-			$common['region'] = $this->options['region'];
-		}
-
-		return $common;
 	}
 
 	/**
@@ -442,12 +594,29 @@ class Client {
 	}
 
 	/**
+	 * Get common options that apply to all modes
+	 *
+	 * @return array<string, string> Common options
+	 */
+	private function get_common_options(): array {
+		$common = [];
+		if ( ! empty( $this->options['language'] ) ) {
+			$common['language'] = $this->options['language'];
+		}
+		if ( ! empty( $this->options['region'] ) ) {
+			$common['region'] = $this->options['region'];
+		}
+
+		return $common;
+	}
+
+	/**
 	 * Generate the API URL
 	 *
 	 * @param string $mode   The embed mode
 	 * @param array  $params URL parameters
 	 *
-	 * @return string|WP_Error
+	 * @return string|WP_Error URL for the embed or WP_Error on failure
 	 */
 	private function generate_url( string $mode, array $params = [] ) {
 		if ( empty( $this->api_key ) ) {
