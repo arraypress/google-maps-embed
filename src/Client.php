@@ -16,6 +16,7 @@ declare( strict_types=1 );
 
 namespace ArrayPress\Google\MapsEmbed;
 
+use ArrayPress\Google\MapsEmbed\Traits\Parameters;
 use WP_Error;
 
 /**
